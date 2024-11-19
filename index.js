@@ -1,6 +1,6 @@
 const express = require("express");
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 require('dotenv').config()
 
 
@@ -27,7 +27,11 @@ const client = new MongoClient(uri, {
       await client.connect();
 
       const assignmentsCollection = client.db("online_study_db").collection("assignments");
+      const attemptAssignmentsCollection = client.db("online_study_db").collection("attempt-assignments");
 
+      const featuresCollection = client.db("online_study_db").collection("features");
+      // Get Related APIs
+      // get assignments from db
       app.get('/assignments', async(req,res)=>{
         
         const options = {
@@ -41,6 +45,158 @@ const client = new MongoClient(uri, {
         res.json(result)
 
       })
+      // Get Assignment By Id
+      app.get('/assignment', async(req,res)=>{
+        const id = req.query.id;
+        const query = {_id : new ObjectId(id)};
+        const assignment = await assignmentsCollection.findOne(query);
+        res.json(assignment)
+
+
+
+      })
+      // Get Assignment Details
+      app.get('/assignment-details/:id',async(req,res) =>{
+        const id = req.params.id;
+        const query = {_id : new ObjectId(id)};
+        const assignment = await assignmentsCollection.findOne(query);
+        res.json(assignment)
+      })
+
+      // get pending assignments from db
+      app.get('/pending-assignments', async(req,res)=>{
+        const status = req.query.status;
+        const email = req.query.email;
+        const examineeEmail = req.query.examineeEmail;
+        if(email && status){
+
+          const query = {status,email};
+          console.log(query)
+        const cursor = attemptAssignmentsCollection.find(query);
+
+        const result = await cursor.toArray()
+        res.json(result)
+        }
+        
+
+      })
+      // get attempted assignments from db
+      app.get('/attempted-assignments', async(req,res)=>{
+        const email = req.query.email
+        const query = {examineeEmail:email}
+        const cursor = attemptAssignmentsCollection.find(query);
+
+        const result = await cursor.toArray()
+        res.json(result)
+
+      })
+      // get features from db
+      app.get('/features', async(req,res)=>{
+        const options = {
+          // Sort returned documents in ascending order by title (A->Z)
+          sort: { name: 1 },
+          
+        };
+        const cursor = featuresCollection.find({},options);
+
+        const result = await cursor.toArray()
+        res.json(result)
+
+      })
+
+
+
+      // Post Related APIs
+      // post new assignment in db
+      app.post('/new-assignment',async(req,res) =>{
+        const docs = req.body;
+        const result = await assignmentsCollection.insertOne(docs);
+
+        res.json(result)
+
+      })
+      // post submitted assignments in db
+      app.post('/attempt-assignments',async(req,res) =>{
+        const docs = req.body;
+        console.log(docs)
+        const result = await attemptAssignmentsCollection.insertOne(docs);
+
+        res.json(result)
+
+      })
+
+
+      // Update Related APIs
+      // update assignment from client site
+      app.put('/update-assignment', async(req,res) =>{
+        const id = req.query.id;
+        const filter = { _id : new ObjectId(id) };
+        const assignment = req.body;
+        const updatedDoc = {
+          $set: {
+            title: assignment.title,
+            thumbnailImageURL: assignment.thumbnailImageURL,
+            marks:assignment.marks,
+            difficultyLevel:assignment.difficultyLevel,
+            date:assignment.date,
+            description:assignment.description,
+          },
+        };
+       
+
+        console.log(id)
+        console.log(updatedDoc)
+        const result = await assignmentsCollection.updateOne(filter, updatedDoc);
+        console.log(result)
+        res.send(result)
+
+
+
+      })
+      // update pending assignments from client site
+      app.put('/update-pending-assignment', async(req,res) =>{
+        const id = req.query.id;
+        const filter = { _id : new ObjectId(id) };
+        const updatePendingAssignment = req.body;
+        const updatedDoc = {
+          $set: {
+            feedback:updatePendingAssignment.feedback,
+            obtainedMarks:updatePendingAssignment.obtainedMarks,
+            status:updatePendingAssignment.status
+          },
+        };
+       
+
+       
+        const result = await attemptAssignmentsCollection.updateOne(filter, updatedDoc);
+        console.log(result)
+        res.send(result)
+
+
+
+      })
+
+      // Delete Related APIs
+      // delete assignment from db
+      app.delete('/delete-assignment',async(req,res) =>{
+        const email = req.query.email;
+        const id = req.query.id;
+        const userEmail = req.query.userEmail;
+        const query = { _id: new ObjectId(id) };
+        console.log(userEmail,email,id)
+
+       if(userEmail == email){
+        const result = await assignmentsCollection.deleteOne(query);
+        res.send(result)
+        
+
+       }
+       else{
+
+         res.send({result:'unsuccessfull'})
+       }
+      }
+    )
 
       
     } finally {
