@@ -13,7 +13,9 @@ app.use(express.json());
 app.use(
   cors({
     origin: [
-      "http://localhost:5173"],
+      "http://localhost:5173",
+      "https://tahsin-online-study.web.app",
+    "https://tahsin-online-study.firebaseapp.com"],
     credentials: true,
   })
 );
@@ -48,7 +50,7 @@ const client = new MongoClient(uri, {
 });
 async function run() {
   try {
-    await client.connect();
+    // await client.connect();
 
     const assignmentsCollection = client
       .db("online_study_db")
