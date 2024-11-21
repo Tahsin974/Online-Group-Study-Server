@@ -15,7 +15,8 @@ app.use(
     origin: [
       "http://localhost:5173",
       "https://tahsin-online-study.web.app",
-    "https://tahsin-online-study.firebaseapp.com"],
+      "https://tahsin-online-study.firebaseapp.com",
+    ],
     credentials: true,
   })
 );
@@ -23,17 +24,14 @@ app.use(cookieParser());
 
 // Custom Middleware
 const verifyToken = (req, res, next) => {
-  const Token = req.cookies.token;
-  
-  if (!Token) {
-    res.status(401).send({ message: "Unauthorized Access" });
-  } 
-  else {
-    jwt.verify(Token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
-      if (err) {
-        console.log(err)
-        res.status(401).send({ message: "Unauthorized Access" });
+  const token = req.cookies.token;
 
+  if (!token) {
+    return res.status(401).send({ message: "Unauthorized Access" });
+  } else {
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
+      if (err) {
+        res.status(401).send({ message: "Unauthorized Access" });
       } else {
         req.user = decoded;
         next();
@@ -68,9 +66,9 @@ async function run() {
 
     // Auth Related APIs
     app.post("/jwt", async (req, res) => {
-      const email = req.body;
-      const Token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "24h",
+      const user = req.body;
+      const Token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "48h",
       });
       res
         .cookie("token", Token, {
@@ -78,19 +76,16 @@ async function run() {
           sameSite: "none",
           secure: true,
         })
-        .send(Token);
+        .send({ success: true });
     });
-    app.post('/logOut', async (req, res) => {
-      
-     
-      res.clearCookie('token',{maxAge:0})
-        .send({message:'success'});
+    app.post("/logOut", async (req, res) => {
+      res.clearCookie("token", { maxAge: 0 }).send({ message: "success" });
     });
 
     // Assignments Related APIs
     // Get Related APIs
     // get assignments from db
-    app.get("/assignments",verifyToken, async (req, res) => {
+    app.get("/assignments", async (req, res) => {
       const options = {
         // Sort returned documents in ascending order by title (A->Z)
         sort: { title: 1 },
@@ -101,22 +96,30 @@ async function run() {
       res.json(result);
     });
     // Get Assignment By Id
-    app.get("/assignment",verifyToken, async (req, res) => {
+    app.get("/assignment", verifyToken, async (req, res) => {
       const id = req.query.id;
       const query = { _id: new ObjectId(id) };
-      const assignment = await assignmentsCollection.findOne(query);
-      res.json(assignment);
+      if (req.user.email) {
+        const assignment = await assignmentsCollection.findOne(query);
+        res.json(assignment);
+      } else {
+        res.status(403).send({ message: "forbidden access" });
+      }
     });
     // Get Assignment Details
-    app.get("/assignment-details/:id",verifyToken, async (req, res) => {
+    app.get("/assignment-details/:id", verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
-      const assignment = await assignmentsCollection.findOne(query);
-      res.json(assignment);
+      if (req.user.email) {
+        const assignment = await assignmentsCollection.findOne(query);
+        res.json(assignment);
+      } else {
+        res.status(403).send({ message: "forbidden access" });
+      }
     });
 
     // get pending assignments from db
-    app.get("/pending-assignments",verifyToken, async (req, res) => {
+    app.get("/pending-assignments", verifyToken, async (req, res) => {
       const status = req.query.status;
       const email = req.query.email;
       if (req.user.email == email) {
@@ -125,9 +128,8 @@ async function run() {
 
         const result = await cursor.toArray();
         res.json(result);
-      }
-      else {
-        res.status(403).send({message:'Forbidden Access'})
+      } else {
+        res.status(403).send({ message: "Forbidden Access" });
       }
     });
     // get attempted assignments from db
@@ -135,20 +137,21 @@ async function run() {
       const email = req.query.email;
       const query = { examineeEmail: email };
       const cursor = attemptAssignmentsCollection.find(query);
-      
+
       if (req.user.email == email) {
         const result = await cursor.toArray();
         res.json(result);
       } else {
-        res.status(403).send({message:'Forbidden Access'})
+        res.status(403).send({ message: "Forbidden Access" });
       }
     });
     // get features from db
-    app.get("/features",verifyToken, async (req, res) => {
+    app.get("/features",  async (req, res) => {
       const options = {
         // Sort returned documents in ascending order by title (A->Z)
         sort: { name: 1 },
       };
+
       const cursor = featuresCollection.find({}, options);
 
       const result = await cursor.toArray();
@@ -157,8 +160,7 @@ async function run() {
 
     // Post Related APIs
     // post new assignment in db
-    app.post("/new-assignment",verifyToken, async (req, res) => {
-      
+    app.post("/new-assignment", async (req, res) => {
       const docs = req.body;
       const result = await assignmentsCollection.insertOne(docs);
 
