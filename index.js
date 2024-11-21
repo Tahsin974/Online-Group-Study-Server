@@ -70,7 +70,7 @@ async function run() {
     app.post("/jwt", async (req, res) => {
       const email = req.body;
       const Token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "2s",
+        expiresIn: "2d",
       });
       res
         .cookie("token", Token, {
