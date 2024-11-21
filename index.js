@@ -27,10 +27,13 @@ const verifyToken = (req, res, next) => {
   
   if (!Token) {
     res.status(401).send({ message: "Unauthorized Access" });
-  } else {
+  } 
+  else {
     jwt.verify(Token, process.env.ACCESS_TOKEN_SECRET, function (err, decoded) {
       if (err) {
+        console.log(err)
         res.status(401).send({ message: "Unauthorized Access" });
+
       } else {
         req.user = decoded;
         next();
@@ -67,7 +70,7 @@ async function run() {
     app.post("/jwt", async (req, res) => {
       const email = req.body;
       const Token = jwt.sign(email, process.env.ACCESS_TOKEN_SECRET, {
-        expiresIn: "2d",
+        expiresIn: "2s",
       });
       res
         .cookie("token", Token, {
@@ -87,7 +90,7 @@ async function run() {
     // Assignments Related APIs
     // Get Related APIs
     // get assignments from db
-    app.get("/assignments", async (req, res) => {
+    app.get("/assignments",verifyToken, async (req, res) => {
       const options = {
         // Sort returned documents in ascending order by title (A->Z)
         sort: { title: 1 },
@@ -98,14 +101,14 @@ async function run() {
       res.json(result);
     });
     // Get Assignment By Id
-    app.get("/assignment", async (req, res) => {
+    app.get("/assignment",verifyToken, async (req, res) => {
       const id = req.query.id;
       const query = { _id: new ObjectId(id) };
       const assignment = await assignmentsCollection.findOne(query);
       res.json(assignment);
     });
     // Get Assignment Details
-    app.get("/assignment-details/:id", async (req, res) => {
+    app.get("/assignment-details/:id",verifyToken, async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const assignment = await assignmentsCollection.findOne(query);
@@ -116,7 +119,6 @@ async function run() {
     app.get("/pending-assignments",verifyToken, async (req, res) => {
       const status = req.query.status;
       const email = req.query.email;
-      console.log(req.user.email == email)
       if (req.user.email == email) {
         const query = { status, email };
         const cursor = attemptAssignmentsCollection.find(query);
@@ -142,7 +144,7 @@ async function run() {
       }
     });
     // get features from db
-    app.get("/features", async (req, res) => {
+    app.get("/features",verifyToken, async (req, res) => {
       const options = {
         // Sort returned documents in ascending order by title (A->Z)
         sort: { name: 1 },
