@@ -142,7 +142,7 @@ async function run() {
       }
     });
     // get features from db
-    app.get("/features",verifyToken, async (req, res) => {
+    app.get("/features", async (req, res) => {
       const options = {
         // Sort returned documents in ascending order by title (A->Z)
         sort: { name: 1 },
